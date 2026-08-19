@@ -1,0 +1,20 @@
+# One-click deploy on Render: New + > Blueprint > point at this repo
+services:
+  - type: web
+    name: autosdr
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
+      - key: EMAIL_MODE
+        value: sim
+      - key: WHATSAPP_MODE
+        value: sim
+      - key: SECONDS_PER_DAY
+        value: "60"
+      - key: BOOKING_BASE_URL
+        sync: false

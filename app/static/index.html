@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoSDR — Autonomous Sales Agent</title>
+<script>
+  (function(){
+    const t=localStorage.getItem("autosdr_theme");
+    document.documentElement.dataset.theme=(t==="light"||t==="dark")?t:"dark";
+    const a=localStorage.getItem("autosdr_accent");
+    document.documentElement.dataset.accent=["blue","violet","green","orange"].includes(a)?a:"blue";
+  })();
+</script>
+<style>
+  :root{
+    --bg:#101318; --surface:#15191f; --surface2:#1a1f27; --inset:#0d1015;
+    --line:#252b35; --line-strong:#333b48;
+    --text:#e8ecf1; --text2:#9aa5b3; --text3:#657080;
+    --ok:#3fb968; --warn:#d9a13b; --err:#e0605e;
+    --radius:8px; --radius-sm:6px;
+    --shadow-pop:0 8px 28px rgba(0,0,0,.42);
+    --font:'Segoe UI Variable Text','Segoe UI',system-ui,-apple-system,sans-serif;
+    --accent:#5b8def; --accent-hover:#6f9cf2; --accent-text:#8ab0f5; --oncolor:#fff;
+  }
+  :root[data-accent="violet"]{--accent:#8b7ce8;--accent-hover:#9c8ff0;--accent-text:#b3a7f2}
+  :root[data-accent="green"]{--accent:#3da06c;--accent-hover:#4bb37c;--accent-text:#7cc9a0}
+  :root[data-accent="orange"]{--accent:#d98a4a;--accent-hover:#e29a5e;--accent-text:#e8b083}
+  :root[data-theme="light"]{
+    --bg:#f7f8fa; --surface:#ffffff; --surface2:#f2f4f7; --inset:#eceef2;
+    --line:#e4e7ec; --line-strong:#cfd5dd;
+    --text:#1c2430; --text2:#5c6879; --text3:#98a2b0;
+    --ok:#188544; --warn:#9a6700; --err:#c4322f;
+    --shadow-pop:0 8px 28px rgba(28,36,48,.14);
+    --accent:#3b6fd4; --accent-hover:#2f5fc0; --accent-text:#3b6fd4;
+  }
+  :root[data-theme="light"][data-accent="violet"]{--accent:#6d5cd3;--accent-hover:#5d4cc4;--accent-text:#6d5cd3}
+  :root[data-theme="light"][data-accent="green"]{--accent:#1f8a56;--accent-hover:#187a4a;--accent-text:#1f8a56}
+  :root[data-theme="light"][data-accent="orange"]{--accent:#c06722;--accent-hover:#ad5a1a;--accent-text:#b05f1e}
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:99px}
+  ::-webkit-scrollbar-track{background:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font:400 14px/1.5 var(--font);display:flex;overflow:hidden}
+  h1,h2,h3,h4{font-weight:600}
+  a{color:var(--accent-text);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);border-radius:var(--radius-sm);padding:6px 12px;display:inline-flex;align-items:center;gap:6px;transition:background .12s,border-color .12s,color .12s}
+  button:hover{background:var(--surface2)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--oncolor);font-weight:600}
+  button.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+  button.ghost{border-color:transparent;background:transparent;color:var(--text2)}
+  button.ghost:hover{background:var(--surface2);color:var(--text)}
+  button.subtle-danger{color:var(--err);border-color:transparent;background:transparent}
+  button.subtle-danger:hover{background:color-mix(in srgb,var(--err) 8%,transparent)}
+  button:disabled{opacity:.45;cursor:default}
+  svg.ic{width:15px;height:15px;flex-shrink:0;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+  input,textarea,select{font:inherit;font-size:13.5px;background:var(--surface);border:1px solid var(--line-strong);color:var(--text);border-radius:var(--radius-sm);padding:7px 10px;width:100%}
+  input::placeholder,textarea::placeholder{color:var(--text3)}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;display:block;margin:14px 0 5px}
+
+  /* ── sidebar ── */
+  #side{width:208px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 10px}
+  .brand{display:flex;align-items:center;gap:9px;padding:2px 8px 16px}
+  .brand .mark{width:24px;height:24px;border-radius:6px;background:var(--accent);color:var(--oncolor);display:grid;place-items:center;font-size:12px;font-weight:700}
+  .brand span{font-size:15px;font-weight:700;letter-spacing:.2px}
+  #side nav{display:flex;flex-direction:column;gap:2px}
+  #side nav button{justify-content:flex-start;width:100%;border:0;background:transparent;color:var(--text2);padding:8px 10px;border-radius:var(--radius-sm);font-size:13.5px}
+  #side nav button:hover{background:var(--surface2);color:var(--text)}
+  #side nav button.on{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent-text);font-weight:600}
+  #side nav .count{margin-left:auto;font-size:11.5px;color:var(--text3)}
+  #side nav button.on .count{color:var(--accent-text)}
+  .side-foot{margin-top:auto;padding:10px 8px 2px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+  .statusline{font-size:11.5px;color:var(--text3);line-height:1.7}
+  .statusline b{color:var(--text2);font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:99px;vertical-align:1px;margin-right:5px}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.idle{background:var(--text3)}
+
+  /* ── main column ── */
+  #wrap{flex:1;display:flex;flex-direction:column;min-width:0}
+  #toolbar{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--bg)}
+  #toolbar h1{font-size:16px}
+  #toolbar .sub{font-size:12.5px;color:var(--text3)}
+  .spacer{flex:1}
+  .switch{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);cursor:pointer;user-select:none}
+  .switch .track{width:30px;height:17px;border-radius:99px;background:var(--line-strong);position:relative;transition:background .15s}
+  .switch .knob{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:99px;background:var(--surface);transition:left .15s}
+  .switch.on .track{background:var(--accent)}
+  .switch.on .knob{left:15px}
+  #runstate{font-size:12.5px;color:var(--text3);display:flex;align-items:center;gap:7px}
+  #runstate .dot.live{background:var(--ok);animation:pulse 1.5s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 330px;min-height:0}
+  main.notrace{grid-template-columns:1fr 0}
+  #view{min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+  /* ── metrics strip ── */
+  #stats{display:flex;align-items:center;margin:16px 20px 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);overflow-x:auto}
+  .stat{padding:10px 18px;min-width:96px;border-right:1px solid var(--line)}
+  .stat:last-child{border-right:0}
+  .stat .v{font-size:17px;font-weight:650;letter-spacing:.1px}
+  .stat .v small{font-size:11px;color:var(--text3);font-weight:400;margin-left:3px}
+  .stat .k{font-size:11px;color:var(--text3);margin-top:0}
+
+  /* ── board ── */
+  #boardwrap{flex:1;display:flex;flex-direction:column;min-height:0}
+  #boardbar{display:flex;gap:10px;align-items:center;padding:12px 20px 10px}
+  #boardbar input{width:210px}
+  #boardbar .minscore{width:110px}
+  #boardcount{font-size:12px;color:var(--text3)}
+  #board{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));grid-auto-rows:minmax(210px,calc(50% - 8px));gap:10px;overflow-y:auto;overflow-x:hidden;padding:2px 20px 20px}
+  .col{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden}
+  .col h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);padding:9px 12px;display:flex;justify-content:space-between;align-items:baseline}
+  .col h3 .n{color:var(--text3);font-weight:500}
+  .col.neg h3{color:var(--text3)}
+  .col.neg{background:color-mix(in srgb,var(--surface) 60%,var(--bg))}
+  .cards{flex:1;overflow-y:auto;padding:0 8px 8px;display:flex;flex-direction:column;gap:6px}
+  .cards .empty{color:var(--text3);font-size:12px;text-align:center;margin-top:16px;opacity:.6}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;cursor:pointer;transition:border-color .12s}
+  :root[data-theme="light"] .card{background:var(--surface)}
+  .card:hover{border-color:var(--accent)}
+  .card .toprow{display:flex;align-items:baseline;gap:8px}
+  .card .nm{font-weight:600;font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .sc{font-size:12.5px;font-weight:650;white-space:nowrap}
+  .card .sc .dot{margin-right:4px}
+  .card .meta{color:var(--text3);font-size:11.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ── trace ── */
+  #trace{display:flex;flex-direction:column;min-height:0;background:var(--surface);border-left:1px solid var(--line)}
+  #trace .thead{display:flex;align-items:center;gap:8px;padding:12px 14px 8px}
+  #trace .thead h2{font-size:12px;font-weight:600;color:var(--text2);flex:1;text-transform:uppercase;letter-spacing:.05em}
+  .tfilters{display:flex;gap:2px;padding:0 12px 10px;border-bottom:1px solid var(--line)}
+  .tfilters button{padding:3px 10px;font-size:11.5px;border:0;background:transparent;color:var(--text3);border-radius:99px}
+  .tfilters button.on{background:var(--surface2);color:var(--text);font-weight:600}
+  #tracelog{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.55}
+  .evt{padding:4px 0 4px 12px;border-left:2px solid var(--line);margin-bottom:2px;word-break:break-word;color:var(--text2)}
+  .evt .a{font-weight:600;color:var(--text)}
+  .evt .t{color:var(--text3);font-size:10.5px;margin-left:6px}
+  .evt.decision,.evt.stage{border-left-color:var(--accent);color:var(--text)}
+  .evt.error,.evt.retry{border-left-color:var(--err)}
+  .evt.error .a,.evt.retry .a{color:var(--err)}
+  .evt.email,.evt.whatsapp{border-left-color:var(--ok)}
+  .evt.cost,.evt.step{opacity:.6;font-size:11.5px}
+  #tracebtn{display:none}
+
+  /* ── pages ── */
+  .page{flex:1;overflow-y:auto;padding:24px;max-width:900px;width:100%}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:14px}
+  .panel h2{font-size:14px;margin-bottom:4px}
+  .hint{color:var(--text2);font-size:13px}
+  .fine{color:var(--text3);font-size:12px}
+  .row{display:flex;gap:12px}
+  .row>*{flex:1}
+  .tagline{display:inline-block;background:var(--surface2);border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:12px;color:var(--text2);margin:3px 4px 0 0}
+
+  /* ── onboarding ── */
+  #onboard{flex:1;display:grid;place-items:center;overflow-y:auto;padding:24px}
+  .wizard{width:min(620px,94vw);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:34px 38px}
+  .wizard .progress{display:flex;align-items:center;gap:10px;margin-bottom:26px}
+  .wizard .progress .bar{flex:1;height:3px;border-radius:99px;background:var(--line);overflow:hidden}
+  .wizard .progress .bar i{display:block;height:100%;background:var(--accent);transition:width .25s}
+  .wizard .progress span{font-size:12px;color:var(--text3)}
+  .wizard h1{font-size:19px;margin-bottom:6px}
+  .wizard .sub{color:var(--text2);margin-bottom:20px;font-size:13.5px;line-height:1.55}
+  .dropzone{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:28px;text-align:center;color:var(--text2);cursor:pointer;transition:border-color .12s,background .12s}
+  .dropzone:hover,.dropzone.drag{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 4%,transparent)}
+  .dropzone svg{width:22px;height:22px;stroke:var(--text3);margin-bottom:8px}
+  .dropzone b{color:var(--text)}
+  .orline{display:flex;align-items:center;gap:12px;color:var(--text3);font-size:11px;margin:18px 0;text-transform:uppercase;letter-spacing:.08em}
+  .orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
+  .wfoot{display:flex;justify-content:space-between;align-items:center;margin-top:26px}
+  .slider-row{display:flex;align-items:center;gap:14px}
+  input[type=range]{accent-color:var(--accent);padding:0;border:0;background:transparent}
+  .bigval{font-size:18px;font-weight:650;min-width:26px;text-align:center}
+
+  /* ── approvals ── */
+  .draft{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px}
+  .draft .dhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .draft .dhead b{font-size:14px}
+  .draft .to{font-size:12.5px;color:var(--text2)}
+  .draft pre{white-space:pre-wrap;font:12.5px/1.6 var(--font);color:var(--text2);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;margin:10px 0}
+  .emptystate{text-align:center;color:var(--text2);padding:70px 20px;font-size:13.5px}
+  .emptystate h3{font-size:15px;color:var(--text);margin-bottom:6px}
+
+  .note{border-left:2px solid var(--line-strong);padding:6px 12px;margin-bottom:8px;font-size:12.5px;color:var(--text2)}
+  .note .k{color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+
+  /* ── drawer ── */
+  #overlay{position:fixed;inset:0;background:rgba(8,10,14,.5);z-index:40;opacity:0;pointer-events:none;transition:opacity .15s}
+  #overlay.on{opacity:1;pointer-events:auto}
+  #drawer{position:fixed;top:0;right:0;bottom:0;width:min(720px,94vw);background:var(--bg);border-left:1px solid var(--line);box-shadow:var(--shadow-pop);transform:translateX(103%);transition:transform .18s ease;z-index:50;display:flex;flex-direction:column}
+  #drawer.open{transform:none}
+  #drawer .head{padding:18px 24px 0;background:var(--surface);border-bottom:1px solid var(--line)}
+  #drawer .toprow{display:flex;align-items:center;gap:14px}
+  #d-score{font-size:26px;font-weight:700;min-width:64px}
+  #d-score small{font-size:13px;color:var(--text3);font-weight:400}
+  #drawer h2{font-size:16px}
+  #drawer .head a{font-size:12.5px}
+  .stagebadge{font-size:11px;font-weight:600;border-radius:99px;padding:3px 10px;background:var(--surface2);color:var(--text2);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .dtabs{display:flex;gap:18px;margin-top:14px}
+  .dtabs button{border:0;background:transparent;color:var(--text2);padding:8px 2px;font-size:13px;border-radius:0;border-bottom:2px solid transparent}
+  .dtabs button:hover{background:transparent;color:var(--text)}
+  .dtabs button.on{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
+  #drawer .body{flex:1;overflow-y:auto;padding:20px 24px}
+  .sec{margin-bottom:24px}
+  .sec h4{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px}
+  .factor{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12.5px}
+  .factor .fn{width:150px;color:var(--text2)}
+  .bar{flex:1;height:5px;background:var(--inset);border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+  .factor .fs{width:28px;text-align:right;font-weight:600;font-size:12px}
+  .ev{border-left:2px solid var(--line-strong);padding:8px 14px;margin-bottom:10px;font-size:12.5px}
+  .ev b{font-size:12.5px}
+  .ev .q{color:var(--text2);font-style:italic;margin-top:2px}
+  .ev .u{color:var(--text3);font-size:11px;word-break:break-all;margin-top:3px}
+  .contact{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px;padding:9px 13px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm)}
+  .badge{font-size:10.5px;font-weight:600;border-radius:5px;padding:1.5px 7px;background:var(--surface2);color:var(--text2);text-transform:uppercase;letter-spacing:.04em}
+  .badge.live{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .badge.sim{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .badge.draft{color:var(--accent-text);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .badge.verified,.badge.scraped{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .badge.guessed,.badge.unknown{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+
+  .thread{display:flex;flex-direction:column;gap:10px}
+  .msg{border:1px solid var(--line);border-radius:var(--radius);padding:12px 15px;font-size:13px;background:var(--surface)}
+  .msg.in{border-left:3px solid var(--accent)}
+  .msg.draftm{border-style:dashed}
+  .msg .mh{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--text3);margin-bottom:6px;flex-wrap:wrap}
+  .msg .subj{font-weight:600;margin-bottom:4px;font-size:13px}
+  .msg pre{white-space:pre-wrap;font:12.5px/1.6 var(--font);color:var(--text2)}
+  .composer{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-top:16px}
+  .composer .crow{display:flex;gap:8px;margin-top:8px;align-items:flex-end}
+  .composer textarea{resize:vertical;min-height:52px}
+
+  .toastwrap{position:fixed;bottom:16px;right:346px;z-index:99;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+  .toast{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:10px 14px;font-size:12.5px;box-shadow:var(--shadow-pop);max-width:330px;color:var(--text2)}
+  .toast b{color:var(--text)}
+
+  /* theme popover */
+  .themebtn{position:relative}
+  .themepop{position:absolute;bottom:calc(100% + 8px);left:0;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow-pop);z-index:80;width:190px;display:none}
+  .themepop.open{display:block}
+  .themepop h5{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:7px}
+  .mode-row{display:flex;gap:6px;margin-bottom:12px}
+  .mode-row button{flex:1;justify-content:center;font-size:12px;padding:4px 8px}
+  .mode-row button.on{border-color:var(--accent);color:var(--accent-text)}
+  .swatches{display:flex;gap:8px}
+  .sw{width:20px;height:20px;border-radius:99px;cursor:pointer;border:2px solid transparent}
+  .sw.on{border-color:var(--text)}
+  .sw.blue{background:#5b8def}.sw.violet{background:#8b7ce8}.sw.green{background:#3da06c}.sw.orange{background:#d98a4a}
+
+  .hidden{display:none!important}
+
+  @media (max-width:1000px){
+    main{grid-template-columns:1fr 0}
+    main.notrace{grid-template-columns:0 1fr}   /* on small screens the toggle swaps view <-> trace */
+    #tracebtn{display:inline-flex}
+    #side{width:54px;padding:12px 7px}
+    #side .brand{justify-content:center;padding:2px 0 14px}
+    #side .brand span,#side .lbl,#side .statusline,#side nav .count{display:none}
+    #side nav button{justify-content:center;padding:9px 0}
+    #drawer{width:100vw}
+    .toastwrap{right:16px}
+  }
+  @media (max-width:700px){
+    #toolbar{padding:10px 12px;gap:8px;flex-wrap:wrap}
+    #toolbar h1{font-size:15px}
+    #toolbar .sub{max-width:52vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #runstate{display:none}
+    .switch span:first-child{display:none}   /* keep the switch, drop its label */
+    #stats{margin:10px 12px 0}
+    .stat{padding:8px 13px;min-width:78px}
+    .stat .v{font-size:15px}
+    #boardbar{padding:10px 12px 8px;flex-wrap:wrap}
+    #boardbar input{width:150px;flex:1}
+    #boardbar .minscore{width:86px;flex:0 0 auto}
+    #board{grid-template-columns:1fr 1fr;grid-auto-rows:auto;padding:2px 12px 14px;gap:8px}
+    .col{min-height:110px;max-height:280px}
+    .col.isempty{display:none}               /* phones: skip empty stages entirely */
+    #drawer .head{padding:14px 14px 0}
+    #drawer .body{padding:14px}
+    #d-score{font-size:21px;min-width:52px}
+    .dtabs{gap:12px;overflow-x:auto}
+    .factor .fn{width:104px}
+    .wizard{padding:24px 20px}
+    .page{padding:14px}
+  }
+</style>
+</head>
+<body>
+<aside id="side">
+  <div class="brand"><span class="mark">A</span><span>AutoSDR</span></div>
+  <nav>
+    <button id="tab-pipeline" class="on" onclick="showTab('pipeline')">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
+      <span class="lbl">Pipeline</span><span class="count" id="count-leads"></span></button>
+    <button id="tab-approvals" onclick="showTab('approvals')">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M22 11.1V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span class="lbl">Approvals</span><span class="count" id="count-approvals"></span></button>
+    <button id="tab-memory" onclick="showTab('memory')">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v1a4 4 0 0 0-2 7.5V17a5 5 0 0 0 5 5h4a5 5 0 0 0 5-5v-1.5A4 4 0 0 0 17 8V7a5 5 0 0 0-5-5z"/></svg>
+      <span class="lbl">Memory</span></button>
+    <button id="tab-setup" onclick="showTab('setup')">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="lbl">Settings</span></button>
+  </nav>
+  <div class="side-foot">
+    <div class="statusline" id="modes"></div>
+    <div class="themebtn">
+      <button class="ghost" style="width:100%;justify-content:flex-start" onclick="document.getElementById('themepop').classList.toggle('open')">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg><span class="lbl">Appearance</span></button>
+      <div class="themepop" id="themepop">
+        <h5>Mode</h5>
+        <div class="mode-row">
+          <button id="mode-dark" onclick="setTheme('dark')">Dark</button>
+          <button id="mode-light" onclick="setTheme('light')">Light</button>
+        </div>
+        <h5>Accent</h5>
+        <div class="swatches">
+          <div class="sw blue" onclick="setAccent('blue')"></div>
+          <div class="sw violet" onclick="setAccent('violet')"></div>
+          <div class="sw green" onclick="setAccent('green')"></div>
+          <div class="sw orange" onclick="setAccent('orange')"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div id="wrap">
+  <div id="toolbar">
+    <div><h1 id="pagetitle">Pipeline</h1><div class="sub" id="pagesub"></div></div>
+    <div class="spacer"></div>
+    <div id="runstate"><span class="dot idle"></span><span id="runtext">idle</span></div>
+    <div class="switch" id="approvalswitch" onclick="toggleApproval()" title="Queue outreach emails for one-click review before sending">
+      <span>Review outreach</span><span class="track"><span class="knob"></span></span>
+    </div>
+    <button class="primary" onclick="runPipeline()">
+      <svg class="ic" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>Run</button>
+    <button class="ghost" onclick="stopPipeline()">Stop</button>
+    <button class="ghost" id="tracebtn" onclick="toggleTrace()" title="Show or hide agent activity">Trace</button>
+  </div>
+
+  <main id="main">
+    <section id="view">
+      <div id="onboard" class="tabpane hidden">
+        <div class="wizard">
+          <div class="progress"><div class="bar"><i id="wprog" style="width:33%"></i></div><span id="wstep-label">Step 1 of 3</span></div>
+          <div id="wstep1">
+            <h1>Add your company knowledge</h1>
+            <div class="sub">Upload a company PDF or paste a description. AutoSDR builds a cited knowledge base and grounds every downstream decision in it — services, case studies, pricing, limitations. Works with any company.</div>
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('pdf').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor"/><polyline points="17 8 12 3 7 8" stroke="currentColor"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor"/></svg>
+              <div><b>Upload company PDF</b> — drop it here or click to browse</div>
+            </div>
+            <input type="file" id="pdf" accept=".pdf" class="hidden" onchange="uploadPdf()">
+            <div class="orline">or paste text</div>
+            <textarea id="ctext" rows="4" placeholder="What the company sells, services, case studies, pricing…"></textarea>
+            <div class="wfoot"><span class="fine" id="w1status"></span>
+              <button class="primary" onclick="ingestText()">Continue</button></div>
+          </div>
+          <div id="wstep2" class="hidden">
+            <h1>Define the ideal customer</h1>
+            <div class="sub">AutoSDR turns these four answers into a search strategy, keep-or-drop filtering rules, and a scoring rubric.</div>
+            <div class="row">
+              <div><label>Target location</label><input id="icp-loc" placeholder="Karachi, Pakistan"></div>
+              <div><label>Industry / market</label><input id="icp-ind" placeholder="logistics and courier companies"></div>
+            </div>
+            <div class="row">
+              <div><label>Company size / criteria</label><input id="icp-size" placeholder="SME, 20–500 employees"></div>
+              <div><label>Special targeting</label><input id="icp-target" placeholder="high WhatsApp inquiry volume"></div>
+            </div>
+            <div class="wfoot"><span class="fine" id="w2status"></span>
+              <button class="primary" onclick="saveIcp()">Continue</button></div>
+          </div>
+          <div id="wstep3" class="hidden">
+            <h1>Launch</h1>
+            <div class="sub" id="w3summary">AutoSDR will search, filter, research, qualify, match services, find decision-makers and reach out — hands-free.</div>
+            <label>Your name — signs the outreach emails</label>
+            <input id="sendername" placeholder="e.g. Tehseen" style="max-width:260px">
+            <label>Leads to deep-process this run</label>
+            <div class="slider-row" style="max-width:300px">
+              <input type="range" id="maxleads" min="1" max="10" value="5" oninput="document.getElementById('mlv').textContent=this.value">
+              <span class="bigval" id="mlv">5</span>
+            </div>
+            <label>Governance</label>
+            <div class="switch" id="obApproval" onclick="toggleApproval()" style="width:fit-content">
+              <span>Queue outreach for human approval</span><span class="track"><span class="knob"></span></span>
+            </div>
+            <div class="wfoot"><span></span>
+              <button class="primary" onclick="runPipeline()">Launch autonomous run</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pipelinepane" class="tabpane hidden" style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div id="stats"></div>
+        <div id="boardwrap">
+          <div id="boardbar">
+            <input id="q" placeholder="Search leads" oninput="paintBoard()">
+            <input id="minscore" class="minscore" type="number" min="0" max="100" placeholder="Min score" oninput="paintBoard()">
+            <div class="spacer"></div>
+            <span id="boardcount"></span>
+          </div>
+          <div id="board"></div>
+        </div>
+      </div>
+
+      <div id="approvalspane" class="page tabpane hidden"></div>
+
+      <div id="memorypane" class="page tabpane hidden">
+        <div class="panel">
+          <h2>Short-term memory</h2>
+          <div class="hint" style="margin-bottom:12px">Live working state — the current task and each agent's scratch context.</div>
+          <pre id="stm" style="font:12px/1.6 Consolas,monospace;white-space:pre-wrap;color:var(--text2)"></pre>
+        </div>
+        <div class="panel">
+          <h2>Long-term memory</h2>
+          <div class="hint" style="margin-bottom:12px">Durable relationship facts: research, scores, emails, replies, objections, meetings.</div>
+          <div id="ltm"></div>
+        </div>
+      </div>
+
+      <div id="setuppane" class="page tabpane hidden">
+        <div class="panel"><h2>Company knowledge</h2><div id="profileview" style="margin-top:8px"></div>
+          <div class="row" style="margin-top:16px">
+            <div><label>Replace — upload PDF</label><input type="file" id="pdf2" accept=".pdf" onchange="uploadPdf(true)"></div>
+            <div><label>Replace — paste text</label><textarea id="ctext2" rows="2"></textarea>
+              <button style="margin-top:8px" onclick="ingestText(true)">Ingest</button></div>
+          </div>
+        </div>
+        <div class="panel"><h2>Ideal customer profile</h2><div id="icpview" style="margin:8px 0 4px"></div>
+          <div class="row">
+            <div><label>Location</label><input id="icp-loc2"></div>
+            <div><label>Industry</label><input id="icp-ind2"></div>
+          </div>
+          <div class="row">
+            <div><label>Size</label><input id="icp-size2"></div>
+            <div><label>Targeting</label><input id="icp-target2"></div>
+          </div>
+          <button style="margin-top:12px" onclick="saveIcp(true)">Rebuild ICP</button>
+        </div>
+      </div>
+
+    </section>
+
+    <aside id="trace">
+      <div class="thead">
+        <h2>Agent activity</h2>
+        <button class="ghost" style="padding:2px 8px;font-size:11.5px" onclick="document.getElementById('tracelog').innerHTML=''">Clear</button>
+      </div>
+      <div class="tfilters" id="tfilters">
+        <button class="on" data-f="all">All</button>
+        <button data-f="decisions">Decisions</button>
+        <button data-f="comms">Comms</button>
+        <button data-f="errors">Errors</button>
+      </div>
+      <div id="tracelog"></div>
+    </aside>
+  </main>
+</div>
+
+<div class="toastwrap" id="toasts"></div>
+
+<div id="overlay" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div class="head">
+    <div class="toprow">
+      <div id="d-score">—</div>
+      <div style="flex:1;min-width:0">
+        <h2 id="d-name">—</h2>
+        <a id="d-site" href="#" target="_blank">—</a>
+      </div>
+      <span class="stagebadge" id="d-stage">—</span>
+      <button onclick="window.open('/report/'+CUR,'_blank')">Report</button>
+      <button onclick="advanceLead()" id="d-advance">Advance</button>
+      <button class="ghost" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="dtabs" id="dtabs">
+      <button class="on" data-t="overview">Overview</button>
+      <button data-t="evidence">Research</button>
+      <button data-t="conversation">Conversation</button>
+      <button data-t="schedule">Schedule</button>
+    </div>
+  </div>
+  <div class="body" id="d-body"></div>
+</div>
+
+<script>
+let STATE=null, STATS=null, CUR=null, DTAB="overview", TFILTER="all";
+const $=id=>document.getElementById(id);
+const esc=s=>(s??"").toString().replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const STAGE_LABELS={discovered:"Discovered",potential:"Potential",researching:"Researching",qualified:"Qualified",contacted:"Contacted",interested:"Interested",meeting_scheduled:"Meeting scheduled",converted:"Converted",not_qualified:"Not qualified",not_interested:"Not interested",do_not_contact:"Do not contact"};
+const NEG=new Set(["not_qualified","not_interested","do_not_contact"]);
+const scoreDot=s=>s==null?"":`<span class="dot ${s>=75?"ok":s>=50?"warn":"idle"}" style="${s<50?"background:var(--err)":""}"></span>`;
+
+function showTab(t){
+  for(const x of ["pipeline","approvals","memory","setup"]) $("tab-"+x)?.classList.toggle("on",x===t);
+  $("onboard").classList.add("hidden");
+  $("pipelinepane").classList.toggle("hidden",t!=="pipeline");
+  $("approvalspane").classList.toggle("hidden",t!=="approvals");
+  $("memorypane").classList.toggle("hidden",t!=="memory");
+  $("setuppane").classList.toggle("hidden",t!=="setup");
+  $("pagetitle").textContent={pipeline:"Pipeline",approvals:"Approvals",memory:"Memory",setup:"Settings"}[t];
+  if(t==="memory") loadMemory();
+  if(t==="approvals") loadApprovals();
+  if(t==="setup") renderProfile();
+}
+function showOnboard(step){
+  for(const x of ["pipeline","approvals","memory","setup"]) $(x+"pane").classList.add("hidden");
+  $("onboard").classList.remove("hidden");
+  $("pagetitle").textContent="Welcome";
+  for(let i=1;i<=3;i++) $("wstep"+i).classList.toggle("hidden",i!==step);
+  $("wprog").style.width=(step*33.4)+"%";
+  $("wstep-label").textContent=`Step ${step} of 3`;
+}
+
+let lastBoardSig="", lastBoardTouch=0, booted=false;
+async function refresh(){
+  const [s,h,st]=await Promise.all([
+    fetch("/api/state").then(r=>r.json()),
+    fetch("/api/health").then(r=>r.json()),
+    fetch("/api/stats").then(r=>r.json()),
+  ]);
+  STATE=s; STATS=st;
+  $("modes").innerHTML=
+    `<span class="dot ${h.email_mode==="live"?"ok":"warn"}"></span>email <b>${h.email_mode}</b><br>`+
+    `<span class="dot ${h.whatsapp_mode!=="sim"?"ok":"warn"}"></span>whatsapp <b>${h.whatsapp_mode}</b><br>`+
+    `<span class="dot idle"></span>1 day = <b>${h.seconds_per_day}s</b>`;
+  document.querySelectorAll("#approvalswitch,#obApproval").forEach(el=>el.classList.toggle("on",st.approval_mode));
+  $("count-approvals").textContent=st.pending_approvals||"";
+  $("count-leads").textContent=st.total_leads||"";
+  const locShort=(STATE.icp?.location||"").split(/[;,.]/)[0].trim();
+  $("pagesub").textContent=STATE.profile?[STATE.profile.company_name,locShort].filter(Boolean).join(" · "):"";
+  const configured=s.profile&&s.icp;
+  if(!booted){
+    booted=true;
+    if(configured) showTab("pipeline"); else showOnboard(s.profile?2:1);
+  }else if(!configured&&$("onboard").classList.contains("hidden")){
+    showOnboard(s.profile?2:1);
+  }
+  paintStats();
+  renderProfile();
+  const sig=JSON.stringify([...s.leads].sort((a,b)=>a.id<b.id?-1:1).map(x=>[x.id,x.stage,x.score]));
+  const scrolling=Date.now()-lastBoardTouch<1500;
+  if(sig!==lastBoardSig&&!scrolling){ lastBoardSig=sig; paintBoard(); }
+}
+function paintStats(){
+  if(!STATS) return;
+  const st=STATS;
+  const items=[
+    {k:"leads",v:st.total_leads},
+    {k:"qualified",v:st.qualified_plus},
+    {k:"avg score",v:st.avg_qualified_score!=null?st.avg_qualified_score+"%":"—"},
+    {k:"emails",v:`${st.emails_out}<small>${st.emails_live} live</small>`},
+    {k:"replies",v:st.replies},
+    {k:"meetings",v:st.meetings},
+    {k:"spend",v:"$"+(st.cost_usd||0).toFixed(2),t:st.cost_per_qualified!=null?("$"+st.cost_per_qualified.toFixed(2)+" per qualified lead"):""},
+  ];
+  $("stats").innerHTML=items.map(i=>`<div class="stat" ${i.t?`title="${i.t}"`:""}><div class="v">${i.v}</div><div class="k">${i.k}</div></div>`).join("");
+}
+function paintBoard(){
+  if(!STATE) return;
+  const b=$("board");
+  const scrollY=b.scrollTop;
+  const colScroll={};
+  b.querySelectorAll(".col").forEach(c=>{colScroll[c.dataset.stage]=c.querySelector(".cards").scrollTop;});
+  const q=($("q").value||"").toLowerCase();
+  const ms=parseInt($("minscore").value||"0",10);
+  let shown=0;
+  b.innerHTML="";
+  for(const st of STATE.stages){
+    const leads=STATE.leads.filter(x=>x.stage===st)
+      .filter(x=>!q||x.name.toLowerCase().includes(q)||(x.domain||"").includes(q))
+      .filter(x=>!ms||(x.score??100)>=ms);
+    shown+=leads.length;
+    const col=document.createElement("div");
+    col.className="col"+(NEG.has(st)?" neg":"")+(leads.length?"":" isempty"); col.dataset.stage=st;
+    col.innerHTML=`<h3>${STAGE_LABELS[st]}<span class="n">${leads.length||""}</span></h3><div class="cards"></div>`;
+    const cards=col.querySelector(".cards");
+    if(!leads.length) cards.innerHTML=`<div class="empty">·</div>`;
+    for(const l of leads){
+      const d=document.createElement("div"); d.className="card"; d.onclick=()=>openDrawer(l.id);
+      d.innerHTML=`<div class="toprow"><div class="nm">${esc(l.name)}</div>
+        ${l.score!=null?`<div class="sc">${scoreDot(l.score)}${l.score}</div>`:""}</div>
+        <div class="meta">${esc(l.domain||"")}</div>`;
+      cards.appendChild(d);
+    }
+    if(colScroll[st]) cards.scrollTop=colScroll[st];
+    b.appendChild(col);
+  }
+  b.scrollTop=scrollY;
+  $("boardcount").textContent=`${shown} lead${shown===1?"":"s"}`;
+}
+
+async function loadMemory(){
+  const m=await (await fetch("/api/memory")).json();
+  $("stm").textContent=JSON.stringify(m.short_term,null,2);
+  $("ltm").innerHTML=m.long_term_notes.map(n=>
+    `<div class="note"><span class="k">${esc(n.kind)}</span> · ${new Date(n.ts*1000).toLocaleTimeString()}<br>${esc(n.note)}</div>`).join("")||"<div class='hint'>Empty.</div>";
+}
+async function loadApprovals(){
+  const o=await (await fetch("/api/outbox")).json();
+  const pane=$("approvalspane");
+  if(!o.drafts.length){
+    pane.innerHTML=`<div class="emptystate"><h3>No drafts waiting</h3>
+      ${STATS?.approval_mode?"Review mode is on — new outreach will queue here for sign-off.":"Review mode is off — outreach sends autonomously. Turn on “Review outreach” in the toolbar to approve each email first."}</div>`;
+    return;
+  }
+  pane.innerHTML=`<div class="hint" style="margin-bottom:14px">Outreach waiting for sign-off. Approving sends the real email.</div>`+
+    o.drafts.map(d=>`<div class="draft">
+      <div class="dhead"><b>${esc(d.lead_name||"—")}</b>
+        <span class="badge">${esc(d.meta?.role||"contact")}</span>
+        <span class="badge">score ${d.meta?.score??"—"}</span>
+        <span class="to">to ${esc(d.meta?.to_addr||"")}</span></div>
+      <div style="font-weight:600;font-size:13.5px">${esc(d.subject)}</div>
+      <pre>${esc(d.body)}</pre>
+      <div style="display:flex;gap:8px">
+        <button class="primary" onclick="approveDraft('${d.id}')">Approve &amp; send</button>
+        <button class="subtle-danger" onclick="rejectDraft('${d.id}')">Reject</button>
+      </div></div>`).join("");
+}
+async function approveDraft(id){
+  const r=await fetch(`/api/outbox/${id}/approve`,{method:"POST"});
+  toast(r.ok?"<b>Approved</b> — email sent":"Approve failed");
+  loadApprovals(); refresh();
+}
+async function rejectDraft(id){
+  await fetch(`/api/outbox/${id}/reject`,{method:"POST"});
+  toast("Draft rejected"); loadApprovals(); refresh();
+}
+async function toggleApproval(){
+  const on=!(STATS&&STATS.approval_mode);
+  const fd=new FormData(); fd.append("enabled",on);
+  await fetch("/api/settings/approval",{method:"POST",body:fd});
+  toast(on?"<b>Review mode on</b> — outreach waits for approval":"<b>Review mode off</b> — fully autonomous");
+  refresh();
+}
+
+async function uploadPdf(fromSetup){
+  const f=(fromSetup?$("pdf2"):$("pdf")).files[0]; if(!f) return;
+  if($("w1status")) $("w1status").textContent="Building knowledge base — about a minute…";
+  toast("Ingesting document…");
+  const fd=new FormData(); fd.append("file",f);
+  const r=await fetch("/api/company/upload",{method:"POST",body:fd});
+  if(r.ok){ toast("<b>Company profile built</b>"); await refresh(); if(!fromSetup) showOnboard(2); else renderProfile(); }
+  else { const e=await r.json().catch(()=>({})); toast(esc(e.detail||"Ingest failed — see trace")); if($("w1status")) $("w1status").textContent=""; }
+}
+async function ingestText(fromSetup){
+  const t=(fromSetup?$("ctext2"):$("ctext")).value.trim(); if(!t) return toast("Paste a description first");
+  toast("Ingesting text…");
+  const fd=new FormData(); fd.append("text",t);
+  const r=await fetch("/api/company/text",{method:"POST",body:fd});
+  if(r.ok){ toast("<b>Company profile built</b>"); await refresh(); if(!fromSetup) showOnboard(2); else renderProfile(); }
+}
+async function saveIcp(fromSetup){
+  const g=id=>$(id+(fromSetup?"2":"")).value;
+  const fd=new FormData();
+  fd.append("location",g("icp-loc")); fd.append("industry",g("icp-ind"));
+  fd.append("size",g("icp-size")); fd.append("targeting",g("icp-target"));
+  if($("w2status")) $("w2status").textContent="Structuring ICP…";
+  toast("Structuring ICP…");
+  const r=await fetch("/api/icp",{method:"POST",body:fd});
+  if(r.ok){ toast("<b>ICP ready</b>"); await refresh(); if(!fromSetup) showOnboard(3); else renderProfile(); }
+  else toast("Add the company document first");
+}
+function renderProfile(){
+  const p=STATE?.profile, box=$("profileview");
+  if(box) box.innerHTML=p?`<div class="hint">${esc(p.company_name)} — ${esc(p.tagline||"")}</div>
+    <div style="margin-top:6px">${(p.services||[]).map(s=>`<span class="tagline">${esc(s.name)}</span>`).join("")}</div>`
+    :"<div class='hint'>No company ingested yet.</div>";
+  const i=STATE?.icp, iv=$("icpview");
+  if(iv) iv.innerHTML=i?`<div class="hint">${esc(i.industries.join(", "))} · ${esc(i.location)} · ${esc(i.company_size)}</div>`:"<div class='hint'>Not set.</div>";
+  if(p&&$("w3summary")&&STATE.icp) $("w3summary").textContent=`AutoSDR will hunt ${STATE.icp.industries.slice(0,3).join(", ")} for ${p.company_name} — search, filter, research, qualify, match, outreach — hands-free.`;
+}
+async function runPipeline(){
+  const fd=new FormData(); fd.append("max_leads",$("maxleads")?.value||5);
+  const sn=$("sendername")?.value?.trim(); if(sn) fd.append("sender_name",sn);
+  const r=await fetch("/api/run",{method:"POST",body:fd});
+  toast(r.ok?"<b>Autonomous run started</b>":"Finish setup first — company document and ICP");
+  if(r.ok) showTab("pipeline");
+}
+async function stopPipeline(){await fetch("/api/stop",{method:"POST"});toast("Stop requested — finishing current lead");}
+
+async function openDrawer(id){
+  const body=$("d-body");
+  const sameLead=(CUR===id)&&$("drawer").classList.contains("open");
+  const keepScroll=sameLead?body.scrollTop:0;
+  const keepDraft=sameLead?($("sim-body")?.value||""):"";
+  const keepFrom=sameLead?($("sim-from")?.value||null):null;
+  if(!sameLead) DTAB="overview";
+  CUR=id;
+  const d=await (await fetch("/api/leads/"+id)).json();
+  const l=d.lead;
+  $("d-name").textContent=l.name;
+  $("d-site").textContent=l.domain||"";
+  $("d-site").href=l.website||"#";
+  $("d-stage").textContent=STAGE_LABELS[l.stage]||l.stage;
+  $("d-score").innerHTML=l.score!=null?`${l.score}<small>%</small>`:"—";
+  $("d-score").style.color=l.score>=75?"var(--ok)":l.score>=50?"var(--warn)":l.score!=null?"var(--err)":"var(--text3)";
+  document.querySelectorAll("#dtabs button").forEach(b=>{
+    b.classList.toggle("on",b.dataset.t===DTAB);
+    b.onclick=()=>{DTAB=b.dataset.t;openDrawer(id);};
+  });
+  body.innerHTML=renderDrawerTab(d)||"<div class='hint'>Nothing yet — Advance runs this lead through research, scoring and outreach.</div>";
+  $("drawer").classList.add("open"); $("overlay").classList.add("on");
+  if(sameLead){
+    body.scrollTop=keepScroll;
+    if(keepDraft&&$("sim-body")) $("sim-body").value=keepDraft;
+    if(keepFrom&&$("sim-from")) $("sim-from").value=keepFrom;
+  }
+}
+function renderDrawerTab(d){
+  const l=d.lead;
+  if(DTAB==="overview"){
+    let h="";
+    if(l.score_reasons){
+      const q=l.score_reasons;
+      h+=`<div class="sec"><h4>Qualification — ${esc(q.headline)}</h4>
+        ${q.factors.map(f=>`<div class="factor"><span class="fn">${esc(f.name)}</span><span class="bar"><i style="width:${f.score}%"></i></span><span class="fs">${f.score}</span></div>`).join("")}
+        <div class="hint" style="margin-top:10px">${esc(q.explanation)}</div>
+        ${q.risks?.length?`<div class="fine" style="margin-top:6px">Risks: ${q.risks.map(esc).join(" · ")}</div>`:""}</div>`;
+    }
+    if(l.service){
+      const s=l.service;
+      h+=`<div class="sec"><h4>Recommended service</h4>
+        <div style="font-weight:600;font-size:14.5px">${esc(s.service_name)}</div>
+        <div class="hint" style="margin:6px 0">${esc(s.why)}</div>
+        <div class="fine">Proof point: ${esc(s.proof_point)}</div>
+        <div style="margin-top:8px"><span class="badge">grounded in ${(s.source_chunks||[]).map(esc).join(", ")||"KB"}</span>
+        ${s.runner_up?` <span class="badge">runner-up: ${esc(s.runner_up)}</span>`:""}</div></div>`;
+    }
+    if(d.contacts.length){
+      h+=`<div class="sec"><h4>Decision makers</h4>`+d.contacts.map(c=>
+        `<div class="contact"><b>${esc(c.name)}</b><span class="hint">${esc(c.role)}</span>
+         <span style="margin-left:auto;color:var(--text2);font-size:12.5px">${esc(c.email)}</span><span class="badge ${esc(c.email_status)}">${esc(c.email_status)}</span></div>`).join("")+`</div>`;
+    }
+    return h;
+  }
+  if(DTAB==="evidence"){
+    let h="";
+    if(l.research){
+      const r=l.research;
+      h+=`<div class="sec"><h4>Dossier</h4><div class="hint">${esc(r.summary)}</div>
+        ${r.buying_signals?.length?`<div class="hint" style="margin-top:10px"><b>Buying signals</b> — ${r.buying_signals.map(esc).join(" · ")}</div>`:""}
+        ${r.likely_problems?.length?`<div class="hint" style="margin-top:5px"><b>Likely problems</b> — ${r.likely_problems.map(esc).join(" · ")}</div>`:""}
+        ${r.technologies?.length?`<div style="margin-top:8px">${r.technologies.map(t=>`<span class="tagline">${esc(t)}</span>`).join("")}</div>`:""}</div>`;
+    }
+    if(d.evidence.length){
+      h+=`<div class="sec"><h4>Evidence — every claim traces to a source (${d.evidence.length})</h4>`+
+        d.evidence.map(e=>`<div class="ev">${e.meta?`<b>${esc(e.meta)}</b>`:""}<div class="q">“${esc(e.quote)}”</div><div class="u">${esc(e.url)}</div></div>`).join("")+`</div>`;
+    }
+    return h;
+  }
+  if(DTAB==="conversation"){
+    let h=`<div class="thread">`;
+    for(const m of d.messages){
+      const wa=m.channel.startsWith("whatsapp");
+      const live=!m.channel.endsWith("_sim")&&m.status!=="draft";
+      h+=`<div class="msg ${m.direction==="in"?"in":""} ${m.status==="draft"?"draftm":""}"><div class="mh">
+        <b style="color:var(--text2)">${m.direction==="out"?"Sent":"Received"}</b>
+        <span class="badge ${m.status==="draft"?"draft":live?"live":"sim"}">${m.status==="draft"?"awaiting approval":(wa?"whatsapp":"email")+" · "+(live?"live":"sim")}</span>
+        ${m.meta?.kind?`<span class="badge">${esc(m.meta.kind)}</span>`:""}
+        ${m.meta?.intended_to?`<span class="badge">for ${esc(m.meta.intended_to)}</span>`:""}
+        <span>${new Date(m.ts*1000).toLocaleTimeString()}</span></div>
+        ${m.subject?`<div class="subj">${esc(m.subject)}</div>`:""}
+        <pre>${esc(m.body)}</pre>
+        ${m.status==="draft"?`<div style="margin-top:10px"><button class="primary" onclick="approveDraft('${m.id}')">Approve &amp; send</button></div>`:""}</div>`;
+    }
+    h+=`</div>`;
+    if(d.contacts.length){
+      h+=`<div class="composer"><label style="margin-top:0">Simulate a prospect reply</label>
+        <select id="sim-from">${d.contacts.map(c=>`<option value="${esc(c.email)}">${esc(c.name)} — ${esc(c.email)}</option>`).join("")}</select>
+        <div class="crow">
+          <textarea id="sim-body" placeholder="e.g. Interesting — what would this cost us monthly?"></textarea>
+          <button class="primary" onclick="simReply()">Deliver</button>
+        </div></div>`;
+    }
+    return h;
+  }
+  if(DTAB==="schedule"){
+    let h="";
+    if(d.meetings.length){
+      h+=`<div class="sec"><h4>Meetings</h4>`+d.meetings.map(m=>
+        `<div class="contact" style="flex-wrap:wrap"><b>${new Date(m.time_utc*1000).toLocaleString()}</b>
+         <span class="badge">${esc(m.status)}</span>
+         <a href="${esc(m.link)}" target="_blank" style="font-size:12px;word-break:break-all">${esc(m.link)}</a>
+         ${m.briefing?`<pre style="width:100%;font:11.5px/1.6 Consolas,monospace;color:var(--text2);white-space:pre-wrap;margin-top:6px">${esc(JSON.stringify(JSON.parse(m.briefing),null,2))}</pre>`:""}</div>`).join("")+`</div>`;
+    }
+    if(d.followups.length){
+      h+=`<div class="sec"><h4>Follow-ups &amp; reminders</h4>`+d.followups.map(f=>
+        `<div class="factor"><span class="fn">${esc(f.kind)}</span>
+         <span class="fine" style="flex:1">due ${new Date(f.due_ts*1000).toLocaleTimeString()}</span>
+         <span class="badge">${esc(f.status)}</span></div>`).join("")+`</div>`;
+    }
+    if(d.notes.length){
+      h+=`<div class="sec"><h4>Relationship memory</h4>`+d.notes.map(n=>
+        `<div class="note"><span class="k">${esc(n.kind)}</span><br>${esc(n.note)}</div>`).join("")+`</div>`;
+    }
+    return h;
+  }
+  return "";
+}
+function closeDrawer(){$("drawer").classList.remove("open");$("overlay").classList.remove("on");CUR=null;}
+async function advanceLead(){if(!CUR)return;toast("Advancing lead…");fetch("/api/leads/"+CUR+"/advance",{method:"POST"});}
+async function simReply(){
+  const fd=new FormData();
+  fd.append("from_email",$("sim-from").value);
+  fd.append("subject","Re: your email");
+  fd.append("body",$("sim-body").value);
+  toast("Delivering reply…");
+  await fetch("/api/sim/reply",{method:"POST",body:fd});
+  openDrawer(CUR);
+}
+
+function toast(html){
+  const t=document.createElement("div"); t.className="toast"; t.innerHTML=html;
+  $("toasts").appendChild(t);
+  setTimeout(()=>{t.style.opacity="0";t.style.transition="opacity .3s";setTimeout(()=>t.remove(),350)},3800);
+  while($("toasts").children.length>4) $("toasts").firstChild.remove();
+}
+
+function setTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem("autosdr_theme",t);paintThemeUI();}
+function setAccent(a){document.documentElement.dataset.accent=a;localStorage.setItem("autosdr_accent",a);paintThemeUI();}
+function paintThemeUI(){
+  const t=document.documentElement.dataset.theme,a=document.documentElement.dataset.accent;
+  $("mode-dark").classList.toggle("on",t==="dark");
+  $("mode-light").classList.toggle("on",t==="light");
+  document.querySelectorAll(".sw").forEach(s=>s.classList.toggle("on",s.classList.contains(a)));
+}
+document.addEventListener("click",e=>{if(!e.target.closest(".themebtn"))$("themepop")?.classList.remove("open");});
+paintThemeUI();
+
+const log=$("tracelog");
+let lastSeq=0;
+const FILTERS={all:null,decisions:["plan","decision","stage"],comms:["email","whatsapp"],errors:["error","retry"]};
+document.querySelectorAll("#tfilters button").forEach(b=>{
+  b.onclick=()=>{TFILTER=b.dataset.f;document.querySelectorAll("#tfilters button").forEach(x=>x.classList.toggle("on",x===b));
+    log.querySelectorAll(".evt").forEach(e=>{
+      const f=FILTERS[TFILTER];
+      e.classList.toggle("hidden",f&&!f.includes(e.dataset.type));
+    });};
+});
+function evtLine(e){
+  const div=document.createElement("div");
+  div.className="evt "+e.type; div.dataset.type=e.type;
+  const f=FILTERS[TFILTER];
+  if(f&&!f.includes(e.type)) div.classList.add("hidden");
+  const t=new Date(e.ts*1000).toLocaleTimeString();
+  div.innerHTML=`<span class="a">${esc(e.agent)}</span><span class="t">${esc(e.type)} · ${t}</span><div>${esc(e.label)}</div>`;
+  return div;
+}
+const es=new EventSource("/api/events/stream");
+es.onmessage=m=>{
+  const e=JSON.parse(m.data);
+  if(e.seq!==undefined){ if(e.seq<=lastSeq) return; lastSeq=e.seq; }
+  log.appendChild(evtLine(e));
+  while(log.children.length>400) log.removeChild(log.firstChild);
+  log.scrollTop=log.scrollHeight;
+  if(e.type==="plan"||e.type==="tool_call"){ $("runstate").querySelector(".dot").className="dot live"; $("runtext").textContent=e.agent+" working"; }
+  if(e.label&&e.label.startsWith("run complete")){ $("runstate").querySelector(".dot").className="dot idle"; $("runtext").textContent="idle"; }
+  if(e.type==="whatsapp"&&e.label.startsWith("LIVE")) toast("<b>WhatsApp sent</b> — "+esc(e.label.slice(15,80)));
+  else if(e.type==="email"&&e.label.startsWith("LIVE")) toast("<b>Email sent</b> — "+esc(e.label.slice(12,80)));
+  else if(e.type==="stage"&&e.label.includes("Meeting")) toast("<b>Meeting scheduled</b> — "+esc(e.label.split("→")[0]));
+  else if(e.type==="step"&&e.label.startsWith("draft queued")) toast("<b>Outreach queued</b> for approval");
+  if(["stage","decision","email","whatsapp"].includes(e.type)) refresh();
+  if(e.type==="step"&&e.label.startsWith("draft queued")) refresh();
+  if(CUR&&e.lead_id===CUR&&["email","whatsapp","decision","stage"].includes(e.type)) openDrawer(CUR);
+};
+
+function toggleTrace(){ $("main").classList.toggle("notrace"); }
+
+const dz=$("dropzone");
+["dragover","dragenter"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+dz.addEventListener("drop",e=>{ $("pdf").files=e.dataTransfer.files; uploadPdf(); });
+
+$("board").addEventListener("scroll",()=>{lastBoardTouch=Date.now();},{passive:true,capture:true});
+refresh();
+setInterval(refresh,7000);
+setInterval(()=>{if(!$("memorypane").classList.contains("hidden"))loadMemory()},4000);
+</script>
+</body>
+</html>
